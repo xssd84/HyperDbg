@@ -145,6 +145,18 @@ main(int argc, char * argv[])
             printf("\n[x] The snapshot fuzzing engine test cases failed\n");
         }
     }
+    else if (!strcmp(argv[1], TEST_CASE_PARAMETER_FOR_TTD))
+    {
+        if (TestTimeTravelDebuggingEngine())
+        {
+            printf("\n[*] The Hardware Time-Travel Debugging (TTD) test cases passed successfully\n");
+            TestResult = TRUE;
+        }
+        else
+        {
+            printf("\n[x] The Hardware Time-Travel Debugging (TTD) test cases failed\n");
+        }
+    }
     else
     {
         printf("unknown test case\n");

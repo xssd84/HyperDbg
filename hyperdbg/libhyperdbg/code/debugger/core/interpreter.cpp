@@ -1110,6 +1110,13 @@ HyperDbgShowSignature()
         //
         ShowMessages("%x: kHyperDbg> ", g_CurrentRemoteCore);
     }
+    else if (TtdTimelineIsReplaying())
+    {
+        //
+        // Hardware Time-Travel Debugging replay mode
+        //
+        ShowMessages("HYPERDBG [TTD: #%llu]> ", TtdTimelineGetCurrentSequence());
+    }
     else
     {
         //
@@ -1646,6 +1653,18 @@ InitializeCommandsDictionary()
     g_CommandsList["!snapshot"] = {&CommandSnapshot, &CommandSnapshotHelp, DEBUGGER_COMMAND_SNAPSHOT_ATTRIBUTES};
     g_CommandsList["!fuzz"]     = {&CommandFuzz, &CommandFuzzHelp, DEBUGGER_COMMAND_FUZZ_ATTRIBUTES};
     g_CommandsList["!crash"]    = {&CommandCrash, &CommandCrashHelp, DEBUGGER_COMMAND_CRASH_ATTRIBUTES};
+    g_CommandsList["!ttd"]      = {&CommandTtd, &CommandTtdHelp, DEBUGGER_COMMAND_TTD_ATTRIBUTES};
+
+    //
+    // Time-Travel Debugging reverse stepping commands
+    //
+    g_CommandsList["t-"]  = {&CommandTMinus, &CommandTMinusHelp, DEBUGGER_COMMAND_T_ATTRIBUTES};
+    g_CommandsList["tr-"] = {&CommandTMinus, &CommandTMinusHelp, DEBUGGER_COMMAND_T_ATTRIBUTES};
+    g_CommandsList["p-"]  = {&CommandPMinus, &CommandPMinusHelp, DEBUGGER_COMMAND_P_ATTRIBUTES};
+    g_CommandsList["pr-"] = {&CommandPMinus, &CommandPMinusHelp, DEBUGGER_COMMAND_P_ATTRIBUTES};
+    g_CommandsList["gu-"] = {&CommandGuMinus, &CommandGuMinusHelp, DEBUGGER_COMMAND_GU_ATTRIBUTES};
+    g_CommandsList["g-"]  = {&CommandGMinus, &CommandGMinusHelp, DEBUGGER_COMMAND_G_ATTRIBUTES};
+    g_CommandsList["ba-"] = {&CommandBaMinus, &CommandBaMinusHelp, DEBUGGER_COMMAND_BA_ATTRIBUTES};
 
     //
     // hwdbg commands

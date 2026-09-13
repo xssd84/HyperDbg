@@ -154,6 +154,13 @@ IoctlCheckIoctlAllowed(ULONG Ioctl)
         //
         return g_VmmInitialized;
     }
+    else if (IoctlFunction > IOCTL_TTD_IOCTL && IoctlFunction <= IOCTL_TTD_IOCTL + 0x100)
+    {
+        //
+        // Allow if the VMM module is initialized (TTD requires hypervisor)
+        //
+        return g_VmmInitialized;
+    }
     else
     {
         //
@@ -2013,6 +2020,178 @@ DrvDispatchFuzzerIoControl(PIRP Irp, PIO_STACK_LOCATION IrpStack, BOOLEAN * DoNo
 }
 
 /**
+ * @brief Dispatcher for Hardware Time-Travel Debugging (TTD) IOCTLs
+ *
+ * @param Irp
+ * @param IrpStack
+ * @param DoNotChangeInformation
+ * @return NTSTATUS
+ */
+NTSTATUS
+DrvDispatchTtdIoControl(PIRP Irp, PIO_STACK_LOCATION IrpStack, BOOLEAN * DoNotChangeInformation)
+{
+    NTSTATUS Status        = STATUS_SUCCESS;
+    UINT32   Ioctl         = IrpStack->Parameters.DeviceIoControl.IoControlCode;
+    ULONG    InBuffLength  = 0;
+    ULONG    OutBuffLength = 0;
+
+    PDEBUGGER_TTD_START_REQUEST        TtdStartRequest        = NULL;
+    PUINT32                            TtdStopRequest         = NULL;
+    PTTD_SESSION_STATUS                TtdStatusRequest       = NULL;
+    PDEBUGGER_TTD_CHECKPOINT_REQUEST   TtdCheckpointRequest   = NULL;
+    PDEBUGGER_TTD_RESTORE_REQUEST      TtdRestoreRequest      = NULL;
+    PDEBUGGER_TTD_FAST_FORWARD_REQUEST TtdFastForwardRequest  = NULL;
+    PDEBUGGER_TTD_GET_TRACE_REQUEST    TtdGetTraceRequest     = NULL;
+    PDEBUGGER_TTD_FIND_WRITE_REQUEST   TtdFindWriteRequest    = NULL;
+
+    switch (Ioctl)
+    {
+    case IOCTL_TTD_START:
+
+        if (!DrvValidateAndAdjustIoctlParameter(sizeof(DEBUGGER_TTD_START_REQUEST),
+                                                (PVOID *)&TtdStartRequest,
+                                                Irp,
+                                                IrpStack,
+                                                &InBuffLength,
+                                                &OutBuffLength))
+        {
+            Status = STATUS_INVALID_PARAMETER;
+            break;
+        }
+
+        Status = TtdEngineStart(TtdStartRequest);
+        DrvAdjustStatusAndSetOutputSize(sizeof(DEBUGGER_TTD_START_REQUEST), DoNotChangeInformation, Irp, &Status);
+        break;
+
+    case IOCTL_TTD_STOP:
+
+        if (!DrvValidateAndAdjustIoctlParameter(sizeof(UINT32),
+                                                (PVOID *)&TtdStopRequest,
+                                                Irp,
+                                                IrpStack,
+                                                &InBuffLength,
+                                                &OutBuffLength))
+        {
+            Status = STATUS_INVALID_PARAMETER;
+            break;
+        }
+
+        Status = TtdEngineStop(TtdStopRequest);
+        DrvAdjustStatusAndSetOutputSize(sizeof(UINT32), DoNotChangeInformation, Irp, &Status);
+        break;
+
+    case IOCTL_TTD_GET_STATUS:
+
+        if (!DrvValidateAndAdjustIoctlParameter(sizeof(TTD_SESSION_STATUS),
+                                                (PVOID *)&TtdStatusRequest,
+                                                Irp,
+                                                IrpStack,
+                                                &InBuffLength,
+                                                &OutBuffLength))
+        {
+            Status = STATUS_INVALID_PARAMETER;
+            break;
+        }
+
+        Status = TtdEngineGetStatus(TtdStatusRequest);
+        DrvAdjustStatusAndSetOutputSize(sizeof(TTD_SESSION_STATUS), DoNotChangeInformation, Irp, &Status);
+        break;
+
+    case IOCTL_TTD_TAKE_CHECKPOINT:
+
+        if (!DrvValidateAndAdjustIoctlParameter(sizeof(DEBUGGER_TTD_CHECKPOINT_REQUEST),
+                                                (PVOID *)&TtdCheckpointRequest,
+                                                Irp,
+                                                IrpStack,
+                                                &InBuffLength,
+                                                &OutBuffLength))
+        {
+            Status = STATUS_INVALID_PARAMETER;
+            break;
+        }
+
+        Status = TtdEngineTakeCheckpoint(TtdCheckpointRequest);
+        DrvAdjustStatusAndSetOutputSize(sizeof(DEBUGGER_TTD_CHECKPOINT_REQUEST), DoNotChangeInformation, Irp, &Status);
+        break;
+
+    case IOCTL_TTD_RESTORE_CHECKPOINT:
+
+        if (!DrvValidateAndAdjustIoctlParameter(sizeof(DEBUGGER_TTD_RESTORE_REQUEST),
+                                                (PVOID *)&TtdRestoreRequest,
+                                                Irp,
+                                                IrpStack,
+                                                &InBuffLength,
+                                                &OutBuffLength))
+        {
+            Status = STATUS_INVALID_PARAMETER;
+            break;
+        }
+
+        Status = TtdEngineRestoreCheckpoint(TtdRestoreRequest);
+        DrvAdjustStatusAndSetOutputSize(sizeof(DEBUGGER_TTD_RESTORE_REQUEST), DoNotChangeInformation, Irp, &Status);
+        break;
+
+    case IOCTL_TTD_FAST_FORWARD:
+
+        if (!DrvValidateAndAdjustIoctlParameter(sizeof(DEBUGGER_TTD_FAST_FORWARD_REQUEST),
+                                                (PVOID *)&TtdFastForwardRequest,
+                                                Irp,
+                                                IrpStack,
+                                                &InBuffLength,
+                                                &OutBuffLength))
+        {
+            Status = STATUS_INVALID_PARAMETER;
+            break;
+        }
+
+        Status = TtdEngineFastForward(TtdFastForwardRequest);
+        DrvAdjustStatusAndSetOutputSize(sizeof(DEBUGGER_TTD_FAST_FORWARD_REQUEST), DoNotChangeInformation, Irp, &Status);
+        break;
+
+    case IOCTL_TTD_GET_TRACE_BUFFER:
+
+        if (!DrvValidateAndAdjustIoctlParameter(sizeof(DEBUGGER_TTD_GET_TRACE_REQUEST),
+                                                (PVOID *)&TtdGetTraceRequest,
+                                                Irp,
+                                                IrpStack,
+                                                &InBuffLength,
+                                                &OutBuffLength))
+        {
+            Status = STATUS_INVALID_PARAMETER;
+            break;
+        }
+
+        Status = TtdEngineGetTraceBuffer(TtdGetTraceRequest);
+        DrvAdjustStatusAndSetOutputSize(sizeof(DEBUGGER_TTD_GET_TRACE_REQUEST), DoNotChangeInformation, Irp, &Status);
+        break;
+
+    case IOCTL_TTD_FIND_MEMORY_WRITE:
+
+        if (!DrvValidateAndAdjustIoctlParameter(sizeof(DEBUGGER_TTD_FIND_WRITE_REQUEST),
+                                                (PVOID *)&TtdFindWriteRequest,
+                                                Irp,
+                                                IrpStack,
+                                                &InBuffLength,
+                                                &OutBuffLength))
+        {
+            Status = STATUS_INVALID_PARAMETER;
+            break;
+        }
+
+        Status = TtdEngineFindMemoryWrite(TtdFindWriteRequest);
+        DrvAdjustStatusAndSetOutputSize(sizeof(DEBUGGER_TTD_FIND_WRITE_REQUEST), DoNotChangeInformation, Irp, &Status);
+        break;
+
+    default:
+        LogError("Err, unknown TTD IOCTL (0x%x)", Ioctl);
+        Status = STATUS_NOT_IMPLEMENTED;
+        break;
+    }
+
+    return Status;
+}
+
+/**
  * @brief Driver IOCTL Dispatcher
  *
  * @param DeviceObject
@@ -2082,6 +2261,10 @@ DrvDispatchIoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     else if (IoctlFunction > IOCTL_FUZZER_IOCTL && IoctlFunction <= IOCTL_FUZZER_IOCTL + 0x100)
     {
         Status = DrvDispatchFuzzerIoControl(Irp, IrpStack, &DoNotChangeInformation);
+    }
+    else if (IoctlFunction > IOCTL_TTD_IOCTL && IoctlFunction <= IOCTL_TTD_IOCTL + 0x100)
+    {
+        Status = DrvDispatchTtdIoControl(Irp, IrpStack, &DoNotChangeInformation);
     }
     else
     {

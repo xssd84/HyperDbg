@@ -505,6 +505,12 @@ typedef std::map<std::string, COMMAND_DETAIL> CommandType;
 #define DEBUGGER_COMMAND_CRASH_ATTRIBUTES \
     NULL
 
+#define DEBUGGER_COMMAND_TTD_ATTRIBUTES \
+    NULL
+
+#define DEBUGGER_COMMAND_BA_ATTRIBUTES \
+    NULL
+
 //////////////////////////////////////////////////
 //             Command Functions                //
 //////////////////////////////////////////////////
@@ -835,3 +841,42 @@ CommandXsetbv(vector<CommandToken> CommandTokens, string Command);
 
 VOID
 CommandXsetbvHelp();
+
+//
+// Time-Travel Debugging (TTD) commands
+//
+VOID
+CommandTtd(vector<CommandToken> CommandTokens, string Command);
+
+VOID
+CommandTtdHelp();
+
+VOID
+CommandTMinus(vector<CommandToken> CommandTokens, string Command);
+
+VOID
+CommandTMinusHelp();
+
+VOID
+CommandPMinus(vector<CommandToken> CommandTokens, string Command);
+
+VOID
+CommandPMinusHelp();
+
+VOID
+CommandGuMinus(vector<CommandToken> CommandTokens, string Command);
+
+VOID
+CommandGuMinusHelp();
+
+VOID
+CommandGMinus(vector<CommandToken> CommandTokens, string Command);
+
+VOID
+CommandGMinusHelp();
+
+VOID
+CommandBaMinus(vector<CommandToken> CommandTokens, string Command);
+
+VOID
+CommandBaMinusHelp();

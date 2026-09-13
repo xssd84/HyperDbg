@@ -411,6 +411,16 @@ HyperDbgRegisterShowAll()
         ExtraRegs.GS,
         ExtraRegs.RFLAGS);
 
+    if (TtdTimelineIsReplaying())
+    {
+        PTTD_TIMELINE_FRAME PrevFrame = TtdTimelineGetPreviousFrame();
+        PTTD_TIMELINE_FRAME CurrFrame = TtdTimelineGetCurrentFrame();
+        if (PrevFrame && CurrFrame)
+        {
+            TtdTimelinePrintDelta(PrevFrame, CurrFrame);
+        }
+    }
+
     return TRUE;
 }
 

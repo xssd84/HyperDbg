@@ -5,6 +5,7 @@ set(SourceFiles
     "code/tests/tools.cpp"
     "code/tests/fuzzing-test.cpp"
     "code/tests/fuzzing-targets.cpp"
+    "code/tests/ttd-test.cpp"
     "pch.cpp"
     "../include/platform/user/header/Environment.h"
     "header/namedpipe.h"

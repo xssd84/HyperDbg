@@ -338,3 +338,24 @@ CommandHwClkHelp();
 
 VOID
 CommandHwHelp();
+
+//
+// Time-Travel Debugging (TTD) commands
+//
+VOID
+CommandTtdHelp();
+
+VOID
+CommandTMinusHelp();
+
+VOID
+CommandPMinusHelp();
+
+VOID
+CommandGuMinusHelp();
+
+VOID
+CommandGMinusHelp();
+
+VOID
+CommandBaMinusHelp();

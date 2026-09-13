@@ -260,6 +260,15 @@ DirtyLoggingFlushPmlBuffer(VIRTUAL_MACHINE_STATE * VCpu)
 
         AccessedPhysAddr = PmlBuf[PmlIdx];
 
+        //
+        // If Hardware TTD is actively recording, capture pristine 4KB page
+        // into incremental CoW undo log before clearing dirty bit
+        //
+        if (TtdEngineIsRecording())
+        {
+            TtdEngineRecordPmlPageDiff(VCpu, AccessedPhysAddr);
+        }
+
         PmlEntry = EptGetPml1OrPml2Entry(VCpu->EptPageTable, AccessedPhysAddr, &IsLargePage);
 
         if (PmlEntry == NULL)

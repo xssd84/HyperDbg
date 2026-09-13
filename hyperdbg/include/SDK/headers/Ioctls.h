@@ -95,6 +95,12 @@
  */
 #define IOCTL_FUZZER_IOCTL IOCTL_START_CODE + 0x400
 
+/**
+ * @brief ioctl, for Hardware Time-Travel Debugging (TTD) functionalities
+ *
+ */
+#define IOCTL_TTD_IOCTL IOCTL_START_CODE + 0x500
+
 //////////////////////////////////////////////////
 //                 Basic IOCTLs                 //
 //////////////////////////////////////////////////
@@ -532,5 +538,73 @@
  */
 #define IOCTL_FUZZ_AFL_FORKSERVER_SIGNAL \
     CTL_CODE(FILE_DEVICE_UNKNOWN, IOCTL_FUZZER_IOCTL + 0x0B, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#endif
+
+//////////////////////////////////////////////////
+//           Time-Travel Debugging IOCTLs       //
+//////////////////////////////////////////////////
+
+#ifndef IOCTL_TTD_START
+/**
+ * @brief IOCTL to start Hardware Time-Travel Debugging session.
+ */
+#define IOCTL_TTD_START \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, IOCTL_TTD_IOCTL + 0x01, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#endif
+
+#ifndef IOCTL_TTD_STOP
+/**
+ * @brief IOCTL to stop Hardware Time-Travel Debugging session.
+ */
+#define IOCTL_TTD_STOP \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, IOCTL_TTD_IOCTL + 0x02, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#endif
+
+#ifndef IOCTL_TTD_GET_STATUS
+/**
+ * @brief IOCTL to query status and metrics of active TTD session.
+ */
+#define IOCTL_TTD_GET_STATUS \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, IOCTL_TTD_IOCTL + 0x03, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#endif
+
+#ifndef IOCTL_TTD_TAKE_CHECKPOINT
+/**
+ * @brief IOCTL to take an incremental checkpoint synchronized with PT and PML.
+ */
+#define IOCTL_TTD_TAKE_CHECKPOINT \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, IOCTL_TTD_IOCTL + 0x04, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#endif
+
+#ifndef IOCTL_TTD_RESTORE_CHECKPOINT
+/**
+ * @brief IOCTL to revert physical memory and vCPU context to a past checkpoint.
+ */
+#define IOCTL_TTD_RESTORE_CHECKPOINT \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, IOCTL_TTD_IOCTL + 0x05, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#endif
+
+#ifndef IOCTL_TTD_FAST_FORWARD
+/**
+ * @brief IOCTL to forward-execute guest on physical CPU to target instruction via PMU.
+ */
+#define IOCTL_TTD_FAST_FORWARD \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, IOCTL_TTD_IOCTL + 0x06, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#endif
+
+#ifndef IOCTL_TTD_GET_TRACE_BUFFER
+/**
+ * @brief IOCTL to fetch raw Intel PT ToPA packet trace buffer.
+ */
+#define IOCTL_TTD_GET_TRACE_BUFFER \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, IOCTL_TTD_IOCTL + 0x07, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#endif
+
+#ifndef IOCTL_TTD_FIND_MEMORY_WRITE
+/**
+ * @brief IOCTL to execute reverse memory watchpoint to locate instruction writing to target.
+ */
+#define IOCTL_TTD_FIND_MEMORY_WRITE \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, IOCTL_TTD_IOCTL + 0x08, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #endif
 

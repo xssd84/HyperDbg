@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\packages\Microsoft.Windows.SDK.CPP.x64.10.0.28000.1839\build\native\Microsoft.Windows.SDK.cpp.x64.props" Condition="Exists('..\packages\Microsoft.Windows.SDK.CPP.x64.10.0.28000.1839\build\native\Microsoft.Windows.SDK.cpp.x64.props')" />
   <Import Project="..\packages\Microsoft.Windows.SDK.CPP.10.0.28000.1839\build\native\Microsoft.Windows.SDK.cpp.props" Condition="Exists('..\packages\Microsoft.Windows.SDK.CPP.10.0.28000.1839\build\native\Microsoft.Windows.SDK.cpp.props')" />
@@ -155,6 +155,7 @@
     <ClCompile Include="code\features\CompatibilityChecks.c" />
     <ClCompile Include="code\features\DirtyLogging.c" />
     <ClCompile Include="code\features\SnapshotFuzzing.c" />
+    <ClCompile Include="code\features\TtdEngine.c" />
     <ClCompile Include="code\globals\GlobalVariableManagement.c" />
     <ClCompile Include="code\hooks\ept-hook\EptHook.c" />
     <ClCompile Include="code\hooks\ept-hook\ModeBasedExecHook.c" />
@@ -266,6 +267,7 @@
     <ClInclude Include="header\features\CompatibilityChecks.h" />
     <ClInclude Include="header\features\DirtyLogging.h" />
     <ClInclude Include="header\features\SnapshotFuzzing.h" />
+    <ClInclude Include="header\features\TtdEngine.h" />
     <ClInclude Include="header\globals\GlobalVariableManagement.h" />
     <ClInclude Include="header\globals\GlobalVariables.h" />
     <ClInclude Include="header\hooks\Hooks.h" />

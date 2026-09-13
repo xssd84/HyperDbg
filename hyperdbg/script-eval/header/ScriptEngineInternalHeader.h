@@ -314,3 +314,21 @@ ScriptEngineFunctionFuzzMutate(UINT64 Address, UINT64 Size, UINT32 MutateType);
 BOOLEAN
 ScriptEngineFunctionEvasionSetMode(UINT32 ModeMask);
 
+BOOLEAN
+ScriptEngineFunctionTtdStart(UINT32 TargetPid, UINT32 PinToCore);
+
+BOOLEAN
+ScriptEngineFunctionTtdStop();
+
+UINT64
+ScriptEngineFunctionTtdCheckpoint();
+
+BOOLEAN
+ScriptEngineFunctionTtdStepBack();
+
+BOOLEAN
+ScriptEngineFunctionTtdGoto(UINT64 TargetSeq);
+
+UINT64
+ScriptEngineFunctionTtdFindWrite(UINT64 Address, UINT32 Size);
+

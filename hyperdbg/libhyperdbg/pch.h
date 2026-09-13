@@ -234,6 +234,7 @@ typedef const wchar_t *LPCWCHAR, *PCWCHAR;
 #include "header/debugger/core/steppings.h"
 #include "header/rev/rev-ctrl.h"
 #include "header/debugger/misc/assembler.h"
+#include "header/debugger/misc/ttd-timeline.h"
 
 //
 // hwdbg
