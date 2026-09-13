@@ -1,0 +1,28 @@
+// rop_hybrid_extractor.ds
+
+!epthook2 ws2_32!recv script {
+    printf("[*] Target surface hit! Taking Snapshot...\n");
+    snapshot_take();
+    pt_start();
+    printf("[*] Tracing armed. Activating MTF single-stepping...\n");
+    event_trace_instrumentation_step();
+}
+
+!trace script {
+    if (@rsp < poi($teb + 0x10) || @rsp > poi($teb + 0x8)) {
+        printf("\n[!] ==================================================\n");
+        printf("[!] INSTRUCTION-PERFECT STACK PIVOT DETECTED!\n");
+        printf("[!] ==================================================\n");
+        
+        pt_stop(); 
+        lbr_save(); lbr_print();
+        
+        printf("[*] Extracting ROP Payload Logic from Spoofed Stack:\n");
+        for (r_idx = 0; r_idx < 16; r_idx = r_idx + 1) {
+            printf("    [+] +0x%02x: %llx\n", r_idx * 8, poi(@rsp + (r_idx * 8)));
+        }
+        
+        event_clear($event_id);
+        pause(); 
+    }
+}

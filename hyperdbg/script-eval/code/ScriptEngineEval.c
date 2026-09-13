@@ -1848,6 +1848,30 @@ ScriptEngineExecute(PGUEST_REGS                      GuestRegs,
 
         break;
 
+    case FUNC_PT_STOP:
+
+        Des   = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                        (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+
+        DesVal = ScriptEngineFunctionPtStop();
+
+        SetValue(GuestRegs, ScriptGeneralRegisters, Des, DesVal);
+
+        break;
+
+    case FUNC_PT_DUMP:
+
+        Des   = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                        (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+
+        DesVal = ScriptEngineFunctionPtDump();
+
+        SetValue(GuestRegs, ScriptGeneralRegisters, Des, DesVal);
+
+        break;
+
     case FUNC_LBR_SAVE:
 
         Des   = (PSYMBOL)((unsigned long long)CodeBuffer->Head +

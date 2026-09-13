@@ -264,6 +264,12 @@ VOID
 ScriptEngineFunctionEventTraceStepIn();
 
 BOOLEAN
+ScriptEngineFunctionPtStop();
+
+BOOLEAN
+ScriptEngineFunctionPtDump();
+
+BOOLEAN
 ScriptEngineFunctionLbrSave();
 
 BOOLEAN

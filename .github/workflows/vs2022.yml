@@ -2,15 +2,13 @@ name: vs2022-ci
 
 on:
   workflow_dispatch:
-
-# Disabled, uncomment the below line and remove the above lines to activate  
-# on:
-#   push:
-#     branches:
-#       - master
-#       - dev
-#     tags:
-#       - 'v*'
+  push:
+    branches:
+      - master
+      - dev
+      - feature/native-pt-intrinsics
+    tags:
+      - 'v*'
 #     paths-ignore:
 #       - '.gitignore'
 #       - '.gitattributes'
@@ -56,6 +54,7 @@ jobs:
       with:
         fetch-depth: 0
         submodules: recursive
+        token: ${{ secrets.GH_PAT }}
 
     - name: Checkout submodules recursively
       run: git submodule update --init --recursive --remote

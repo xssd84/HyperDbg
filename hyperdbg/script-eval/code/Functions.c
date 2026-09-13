@@ -2334,6 +2334,48 @@ ScriptEngineFunctionEventTraceStepIn()
 #endif // SCRIPT_ENGINE_KERNEL_MODE
 }
 
+
+
+/**
+ * @brief Implementation of pt_stop function
+ *
+ * @return BOOLEAN
+ */
+BOOLEAN
+ScriptEngineFunctionPtStop()
+{
+#ifdef SCRIPT_ENGINE_USER_MODE
+    ShowMessages("err, it's not possible to call pt_stop function in the user-mode\n");
+    return FALSE;
+#endif // SCRIPT_ENGINE_USER_MODE
+
+#ifdef SCRIPT_ENGINE_KERNEL_MODE
+
+    return HyperTracePtPause(NULL);
+
+#endif // SCRIPT_ENGINE_KERNEL_MODE
+}
+
+/**
+ * @brief Implementation of pt_dump function
+ *
+ * @return BOOLEAN
+ */
+BOOLEAN
+ScriptEngineFunctionPtDump()
+{
+#ifdef SCRIPT_ENGINE_USER_MODE
+    ShowMessages("err, it's not possible to call pt_dump function in the user-mode\n");
+    return FALSE;
+#endif // SCRIPT_ENGINE_USER_MODE
+
+#ifdef SCRIPT_ENGINE_KERNEL_MODE
+
+    return HyperTracePtDump(NULL);
+
+#endif // SCRIPT_ENGINE_KERNEL_MODE
+}
+
 /**
  * @brief Implementation of lbr_save function
  *
