@@ -118,6 +118,22 @@ When the user issues a command to step backward or jump to a historical sequence
 
 **Result**: 100% register accuracy, AVX-512 vector support, correct segment limits, and zero emulation drift.
 
+### 2.4 Complete Architectural & Extended State Fidelity (AVX / AVX-512 / XSAVE / MSRs)
+
+Software emulators and binary translators notoriously struggle with advanced SIMD and CPU feature sets (e.g., AVX-512, AMX, Intel MPX, TSX, APX), frequently failing or approximating floating-point rounding modes, vector flags, and MXCSR masks.
+
+HyperDbg's Hardware TTD captures and restores the entire processor state natively:
+- **General-Purpose Registers**: `RAX`, `RBX`, `RCX`, `RDX`, `RSI`, `RDI`, `RSP`, `RBP`, `R8`–`R15`, `RIP`, `RFLAGS`.
+- **Extended Processor Features (XSAVE / XRSTOR)**: Full 4 KB+ `XSAVE` area allocated per vCPU, executing hardware `XSAVE64` and `XRSTOR64` with guest `XCR0` masks. This bit-exactly preserves:
+  - Legacy x87 FPU / MMX and SSE (`XMM0`–`XMM15`, `MXCSR`).
+  - AVX / AVX2 (`YMM0`–`YMM15` upper halves).
+  - AVX-512 (512-bit `ZMM0`–`ZMM31` and Opmask registers `k0`–`k7`).
+  - Intel AMX (Advanced Matrix Extensions tile data & control registers).
+- **System & Control Registers**: `CR0`, `CR2`, `CR3`, `CR4`, `CR8`, `DR6`, `DR7`, `GDTR`, `IDTR`, `LDTR`, `TR`.
+- **Model-Specific Registers (MSRs)**: `IA32_EFER`, `IA32_FS_BASE`, `IA32_GS_BASE`, `IA32_KERNEL_GS_BASE`, `IA32_SYSENTER_*`, and `IA32_LSTAR`.
+
+Because reverse replay and fast-forwarding execute directly on the physical processor silicon, all vector execution and mathematical operations retain 100% bit-exact parity with native execution.
+
 ---
 
 ## 3. Command Reference
@@ -266,7 +282,7 @@ d:\HyperDbg\hyperdbg\build\bin\Release\hyperdbg-test.exe test-ttd
 | **Instruction Tracing** | Software interpreter logs | Dynamic instruction instrumentation | **Hardware Intel Processor Trace (ToPA)** |
 | **Replay Mechanism** | Software emulator step-back | Software log replay | **Bare-metal PMU fast-forward + MTF** |
 | **Kernel / Ring 0 Support** | Limited / Fragile | None (User space only) | **Full bare-metal kernel & user processes** |
-| **AVX / Hardware State** | Emulated approximations | Partial approximations |
+| **AVX / Hardware State** | Emulated approximations | Partial approximations | **100% bit-exact physical silicon execution (XSAVE/XRSTOR)** |
 ---
 
 *HyperDbg Time-Travel Debugging Architecture & Specification — 2026*
