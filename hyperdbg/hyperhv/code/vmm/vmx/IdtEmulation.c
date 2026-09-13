@@ -72,16 +72,13 @@ IdtEmulationQueryIdtEntriesRequest(PINTERRUPT_DESCRIPTOR_TABLE_ENTRIES_PACKETS I
 VOID
 IdtEmulationCreateInterruptGate(PVOID Handler, SEGMENT_DESCRIPTOR_INTERRUPT_GATE_64 * Entry)
 {
-    // SEGMENT_SELECTOR HostCsSelector = {0, 0, 1};
-    //
-    // Entry->InterruptStackTable      = 0;
-    // Entry->SegmentSelector          = HostCsSelector.AsUInt;
-    // Entry->MustBeZero0              = 0;
-    // Entry->Type                     = SEGMENT_DESCRIPTOR_TYPE_INTERRUPT_GATE;
-    // Entry->MustBeZero1              = 0;
-    // Entry->DescriptorPrivilegeLevel = 0;
-    // Entry->Present                  = 1;
-    // Entry->Reserved                 = 0;
+    Entry->SegmentSelector          = AsmGetCs();
+    Entry->MustBeZero0              = 0;
+    Entry->Type                     = SEGMENT_DESCRIPTOR_TYPE_INTERRUPT_GATE;
+    Entry->MustBeZero1              = 0;
+    Entry->DescriptorPrivilegeLevel = 0;
+    Entry->Present                  = 1;
+    Entry->Reserved                 = 0;
 
     UINT64 Offset       = (UINT64)Handler;
     Entry->OffsetLow    = (Offset >> 0) & 0xFFFF;
@@ -260,11 +257,17 @@ IdtEmulationhandleHostInterrupt(_Inout_ INTERRUPT_TRAP_FRAME * IntrTrapFrame)
         //
         PageFaultCr2 = CpuReadCr2();
 
-        LogInfo("Page-fault received, rip: %llx, rsp: %llx, error: %llx, CR2: %llx",
-                IntrTrapFrame->rip,
-                IntrTrapFrame->rsp,
-                IntrTrapFrame->error,
-                PageFaultCr2);
+        LogError("Fatal host page-fault, rip: %llx, rsp: %llx, error: %llx, CR2: %llx",
+                 IntrTrapFrame->rip,
+                 IntrTrapFrame->rsp,
+                 IntrTrapFrame->error,
+                 PageFaultCr2);
+
+        KeBugCheckEx(HYPERVISOR_ERROR,
+                     IntrTrapFrame->vector,
+                     IntrTrapFrame->rip,
+                     PageFaultCr2,
+                     IntrTrapFrame->error);
 
         break;
 

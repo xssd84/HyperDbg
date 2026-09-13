@@ -993,9 +993,11 @@ MemoryMapperReadMemorySafeWrapper(
     SIZE_T                                SizeToRead,
     UINT32                                TargetProcessId)
 {
+    KIRQL            OldIrql     = KeRaiseIrqlToDpcLevel();
     ULONG            CurrentCore = KeGetCurrentProcessorNumberEx(NULL);
     UINT64           AddressToCheck;
     PHYSICAL_ADDRESS PhysicalAddress;
+    BOOLEAN          Status = TRUE;
 
     //
     // Check to see if PTE and Reserved VA already initialized
@@ -1006,6 +1008,7 @@ MemoryMapperReadMemorySafeWrapper(
         //
         // Not initialized
         //
+        KeLowerIrql(OldIrql);
         return FALSE;
     }
 
@@ -1052,7 +1055,8 @@ MemoryMapperReadMemorySafeWrapper(
                     g_MemoryMapper[CurrentCore].VirualAddressForRead,
                     FALSE))
             {
-                return FALSE;
+                Status = FALSE;
+                break;
             }
 
             //
@@ -1063,7 +1067,8 @@ MemoryMapperReadMemorySafeWrapper(
             BufferToSaveMemory = BufferToSaveMemory + ReadSize;
         }
 
-        return TRUE;
+        KeLowerIrql(OldIrql);
+        return Status;
     }
     else
     {
@@ -1074,13 +1079,16 @@ MemoryMapperReadMemorySafeWrapper(
                                                                                                   AddressToRead,
                                                                                                   TargetProcessId);
 
-        return MemoryMapperReadMemorySafeByPte(
+        Status = MemoryMapperReadMemorySafeByPte(
             PhysicalAddress,
             (PVOID)BufferToSaveMemory,
             SizeToRead,
             g_MemoryMapper[CurrentCore].PteVirtualAddressForRead,
             g_MemoryMapper[CurrentCore].VirualAddressForRead,
             FALSE);
+
+        KeLowerIrql(OldIrql);
+        return Status;
     }
 }
 

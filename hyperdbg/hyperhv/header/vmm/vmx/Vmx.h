@@ -250,6 +250,9 @@ VmxPerformVirtualizationOnAllCores();
 BOOLEAN
 VmxTerminate();
 
+VOID
+VmxFreeProcessorStructures(VIRTUAL_MACHINE_STATE * VCpu);
+
 BOOLEAN
 VmxPerformVirtualizationOnSpecificCore();
 

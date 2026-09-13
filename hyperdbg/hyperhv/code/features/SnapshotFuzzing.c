@@ -18,6 +18,7 @@
 //////////////////////////////////////////////////
 
 static BOOLEAN                 g_FuzzerActive                                = FALSE;
+static LONG                    g_SnapshotLock                                = 0;
 static SNAPSHOT_VCPU_CONTEXT   g_VcpuBaselineContext                         = {0};
 static SNAPSHOT_MEMORY_TRACKER g_SnapshotMemoryTracker                       = {0};
 static PFUZZ_AFL_COVERAGE_MAP  g_AflCoverageMap                              = NULL;
@@ -57,9 +58,9 @@ SnapshotFreezeTsc(VIRTUAL_MACHINE_STATE * VCpu, UINT64 FrozenTsc)
     g_VirtualTscDelta     = 0;
 
     UINT64 HardwareTsc  = __rdtsc();
-    UINT64 TargetOffset = FrozenTsc - HardwareTsc;
+    INT64  TargetOffset = (INT64)FrozenTsc - (INT64)HardwareTsc;
 
-    VmxVmwrite64(VMCS_CTRL_TSC_OFFSET, TargetOffset);
+    VmxVmwrite64(VMCS_CTRL_TSC_OFFSET, (UINT64)TargetOffset);
 }
 
 /**
@@ -462,7 +463,33 @@ SnapshotRestoreDirtyPages(VIRTUAL_MACHINE_STATE * VCpu, PSNAPSHOT_MEMORY_TRACKER
     PVOID   PmlEntry;
 
     //
-    // 1. Hardware PML Mode: Read logged GPAs directly from hardware PML buffer
+    //
+    // 1. Roll back all software-tracked dirty pages (including injected inputs)
+    //
+    for (UINT32 i = 0; i < Tracker->DirtyCount; i++)
+    {
+        UINT64 Gpa      = Tracker->DirtyPages[i].PhysicalAddress;
+        PVOID  TargetVa = (PVOID)PhysicalAddressToVirtualAddress(Gpa);
+        if (TargetVa != NULL)
+        {
+            RtlCopyMemory(TargetVa, Tracker->DirtyPages[i].PristineShadowVa, PAGE_SIZE);
+        }
+
+        //
+        // If PML hardware mode is not active, re-arm write protection on PML1 entry
+        //
+        if (!Tracker->AdBitsEnabled || VCpu->PmlBufferAddress == NULL)
+        {
+            PmlEntry = EptGetPml1OrPml2Entry(VCpu->EptPageTable, Gpa, &IsLargePage);
+            if (PmlEntry != NULL && !IsLargePage)
+            {
+                ((PEPT_PML1_ENTRY)PmlEntry)->WriteAccess = FALSE;
+            }
+        }
+    }
+
+    //
+    // 2. Hardware PML Mode: clear hardware dirty flags on PML-logged entries
     //
     if (Tracker->AdBitsEnabled && VCpu->PmlBufferAddress != NULL)
     {
@@ -476,25 +503,6 @@ SnapshotRestoreDirtyPages(VIRTUAL_MACHINE_STATE * VCpu, PSNAPSHOT_MEMORY_TRACKER
             {
                 UINT64 WrittenPhysAddr = PmlBuf[i] & ~0xFFFULL;
 
-                //
-                // Find matching shadow frame
-                //
-                for (UINT32 j = 0; j < Tracker->DirtyCount; j++)
-                {
-                    if (Tracker->DirtyPages[j].PhysicalAddress == WrittenPhysAddr)
-                    {
-                        PVOID TargetVa = (PVOID)PhysicalAddressToVirtualAddress(WrittenPhysAddr);
-                        if (TargetVa != NULL)
-                        {
-                            RtlCopyMemory(TargetVa, Tracker->DirtyPages[j].PristineShadowVa, PAGE_SIZE);
-                        }
-                        break;
-                    }
-                }
-
-                //
-                // Clear hardware EPT Dirty Flag (Bit 9)
-                //
                 PmlEntry = EptGetPml1OrPml2Entry(VCpu->EptPageTable, WrittenPhysAddr, &IsLargePage);
                 if (PmlEntry != NULL && !IsLargePage)
                 {
@@ -506,30 +514,6 @@ SnapshotRestoreDirtyPages(VIRTUAL_MACHINE_STATE * VCpu, PSNAPSHOT_MEMORY_TRACKER
             // Reset PML Index back to top (511)
             //
             VmxVmwrite64(VMCS_GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
-        }
-    }
-    else
-    {
-        //
-        // 2. Software CoW Fallback Mode: Rollback all tracked pages
-        //
-        for (UINT32 i = 0; i < Tracker->DirtyCount; i++)
-        {
-            UINT64 Gpa      = Tracker->DirtyPages[i].PhysicalAddress;
-            PVOID  TargetVa = (PVOID)PhysicalAddressToVirtualAddress(Gpa);
-            if (TargetVa != NULL)
-            {
-                RtlCopyMemory(TargetVa, Tracker->DirtyPages[i].PristineShadowVa, PAGE_SIZE);
-            }
-
-            //
-            // Re-arm write protection on PML1 entry
-            //
-            PmlEntry = EptGetPml1OrPml2Entry(VCpu->EptPageTable, Gpa, &IsLargePage);
-            if (PmlEntry != NULL && !IsLargePage)
-            {
-                ((PEPT_PML1_ENTRY)PmlEntry)->WriteAccess = FALSE;
-            }
         }
     }
 
@@ -721,20 +705,24 @@ SnapshotCaptureCrash(VIRTUAL_MACHINE_STATE * VCpu, UINT32 ExceptionVector, PFUZZ
     SnapshotSaveVcpuContext(VCpu, &Report->RegistersAtCrash);
 
     //
-    // Capture hardware LBR callstack from MSRs
+    // Capture hardware LBR callstack from MSRs (if LBR enabled)
     //
     Report->LbrEntryCount = 0;
-    for (UINT32 i = 0; i < SNAPSHOT_MAX_LBR_DEPTH; i++)
+    UINT64 Debugctl       = HvGetDebugctl();
+    if ((Debugctl & 1) != 0)
     {
-        UINT64 FromIp = CpuReadMsr(0x680 + i);
-        UINT64 ToIp   = CpuReadMsr(0x6C0 + i);
-
-        Report->LbrStack[i].From = FromIp;
-        Report->LbrStack[i].To   = ToIp;
-
-        if (FromIp != 0 || ToIp != 0)
+        for (UINT32 i = 0; i < SNAPSHOT_MAX_LBR_DEPTH; i++)
         {
-            Report->LbrEntryCount++;
+            UINT64 FromIp = CpuReadMsr(0x680 + i);
+            UINT64 ToIp   = CpuReadMsr(0x6C0 + i);
+
+            Report->LbrStack[i].From = FromIp;
+            Report->LbrStack[i].To   = ToIp;
+
+            if (FromIp != 0 || ToIp != 0)
+            {
+                Report->LbrEntryCount++;
+            }
         }
     }
 
@@ -1009,10 +997,25 @@ SnapshotFuzzIterate(PDEBUGGER_FUZZ_ITERATE_REQUEST Request)
         return STATUS_INVALID_DEVICE_STATE;
     }
 
+    SpinlockLock(&g_SnapshotLock);
+
     UINT64 StartCycles = __rdtsc();
 
     //
-    // 1. Inject mutated testcase input into target virtual address
+    // 1. Check if a crash occurred during previous testcase execution
+    //
+    if (g_LastCrashReport.CrashHash != 0)
+    {
+        Request->ExecutionStatus = FUZZ_STATUS_CRASH_EXCEPTION;
+        RtlZeroMemory(&g_LastCrashReport, sizeof(FUZZ_CRASH_REPORT));
+    }
+    else
+    {
+        Request->ExecutionStatus = FUZZ_STATUS_SUCCESS;
+    }
+
+    //
+    // 2. Inject mutated testcase input into target virtual address
     //
     if (Request->TargetVirtualAddress != 0 && Request->InputSize > 0)
     {
@@ -1041,18 +1044,6 @@ SnapshotFuzzIterate(PDEBUGGER_FUZZ_ITERATE_REQUEST Request)
         }
     }
 
-    //
-    // 2. Check if a crash occurred during testcase execution
-    //
-    if (g_LastCrashReport.CrashHash != 0)
-    {
-        Request->ExecutionStatus = FUZZ_STATUS_CRASH_EXCEPTION;
-    }
-    else
-    {
-        Request->ExecutionStatus = FUZZ_STATUS_SUCCESS;
-    }
-
     Request->ElapsedCycles = __rdtsc() - StartCycles;
 
     //
@@ -1070,6 +1061,7 @@ SnapshotFuzzIterate(PDEBUGGER_FUZZ_ITERATE_REQUEST Request)
     }
 
     Request->KernelStatus = 0;
+    SpinlockUnlock(&g_SnapshotLock);
     return STATUS_SUCCESS;
 }
 
@@ -1210,9 +1202,21 @@ SnapshotRunBatch(PDEBUGGER_FUZZ_RUN_BATCH_REQUEST Request)
         RtlCopyMemory(MutatedInput, Request->InputBuffer, InputSize);
     }
 
+    SpinlockLock(&g_SnapshotLock);
+
     for (UINT32 i = 0; i < Request->IterationCount; i++)
     {
-        // 1. In-kernel mutation if requested
+        // 1. Check if a crash occurred during previous execution
+        if (g_LastCrashReport.CrashHash != 0)
+        {
+            Request->ExecutionStatus = FUZZ_STATUS_CRASH_EXCEPTION;
+            RtlCopyMemory(&Request->CrashReport, &g_LastCrashReport, sizeof(FUZZ_CRASH_REPORT));
+            Request->ExecutedCount = i;
+            RtlZeroMemory(&g_LastCrashReport, sizeof(FUZZ_CRASH_REPORT));
+            break;
+        }
+
+        // 2. In-kernel mutation if requested
         if (InputSize > 0 && Request->TargetVirtualAddress != 0)
         {
             // Apply quick havoc / arithmetic mutations
@@ -1254,15 +1258,6 @@ SnapshotRunBatch(PDEBUGGER_FUZZ_RUN_BATCH_REQUEST Request)
             }
         }
 
-        // 2. Check if a crash occurred during testcase execution
-        if (g_LastCrashReport.CrashHash != 0)
-        {
-            Request->ExecutionStatus = FUZZ_STATUS_CRASH_EXCEPTION;
-            RtlCopyMemory(&Request->CrashReport, &g_LastCrashReport, sizeof(FUZZ_CRASH_REPORT));
-            Request->ExecutedCount = i + 1;
-            break;
-        }
-
         // 3. Rollback dirty pages and context
         DEBUGGER_SNAPSHOT_RESTORE_REQUEST RestoreReq = {0};
         SnapshotRestore(&RestoreReq);
@@ -1276,6 +1271,13 @@ SnapshotRunBatch(PDEBUGGER_FUZZ_RUN_BATCH_REQUEST Request)
         Request->ExecutedCount = i + 1;
     }
 
+    if (Request->ExecutionStatus != FUZZ_STATUS_CRASH_EXCEPTION && g_LastCrashReport.CrashHash != 0)
+    {
+        Request->ExecutionStatus = FUZZ_STATUS_CRASH_EXCEPTION;
+        RtlCopyMemory(&Request->CrashReport, &g_LastCrashReport, sizeof(FUZZ_CRASH_REPORT));
+        RtlZeroMemory(&g_LastCrashReport, sizeof(FUZZ_CRASH_REPORT));
+    }
+
     Request->ElapsedCycles = __rdtsc() - StartBatchCycles;
     Request->KernelStatus  = 0;
 
@@ -1285,6 +1287,7 @@ SnapshotRunBatch(PDEBUGGER_FUZZ_RUN_BATCH_REQUEST Request)
         MutatedInput = NULL;
     }
 
+    SpinlockUnlock(&g_SnapshotLock);
     return STATUS_SUCCESS;
 }
 

@@ -170,11 +170,17 @@ HvHandleControlRegisterAccess(VIRTUAL_MACHINE_STATE *         VCpu,
         switch (CrExitQualification->ControlRegister)
         {
         case VMX_EXIT_QUALIFICATION_REGISTER_CR0:
+        {
+            UINT64 Cr0GuestHostMask = 0;
+            UINT64 CurrentGuestCr0  = 0;
+            VmxVmread64P(VMCS_CTRL_CR0_GUEST_HOST_MASK, &Cr0GuestHostMask);
+            VmxVmread64P(VMCS_GUEST_CR0, &CurrentGuestCr0);
 
-            VmxVmwrite64(VMCS_GUEST_CR0, *RegPtr);
+            VmxVmwrite64(VMCS_GUEST_CR0, (CurrentGuestCr0 & Cr0GuestHostMask) | (*RegPtr & ~Cr0GuestHostMask));
             VmxVmwrite64(VMCS_CTRL_CR0_READ_SHADOW, *RegPtr);
 
             break;
+        }
 
         case VMX_EXIT_QUALIFICATION_REGISTER_CR3:
 
@@ -209,11 +215,17 @@ HvHandleControlRegisterAccess(VIRTUAL_MACHINE_STATE *         VCpu,
             break;
 
         case VMX_EXIT_QUALIFICATION_REGISTER_CR4:
+        {
+            UINT64 Cr4GuestHostMask = 0;
+            UINT64 CurrentGuestCr4  = 0;
+            VmxVmread64P(VMCS_CTRL_CR4_GUEST_HOST_MASK, &Cr4GuestHostMask);
+            VmxVmread64P(VMCS_GUEST_CR4, &CurrentGuestCr4);
 
-            VmxVmwrite64(VMCS_GUEST_CR4, *RegPtr);
+            VmxVmwrite64(VMCS_GUEST_CR4, (CurrentGuestCr4 & Cr4GuestHostMask) | (*RegPtr & ~Cr4GuestHostMask));
             VmxVmwrite64(VMCS_CTRL_CR4_READ_SHADOW, *RegPtr);
 
             break;
+        }
 
         default:
             LogWarning("Unsupported register 0x%x in handling control registers access",
@@ -810,7 +822,15 @@ HvHandleMovDebugRegister(VIRTUAL_MACHINE_STATE * VCpu)
     //
     VmxVmread64P(VMCS_EXIT_QUALIFICATION, &ExitQualification.AsUInt);
 
-    UINT64 GpRegister = GpRegs[ExitQualification.GeneralPurposeRegister];
+    UINT64 GpRegister;
+    if (ExitQualification.GeneralPurposeRegister == 4)
+    {
+        VmxVmread64P(VMCS_GUEST_RSP, &GpRegister);
+    }
+    else
+    {
+        GpRegister = GpRegs[ExitQualification.GeneralPurposeRegister];
+    }
 
     //
     // The MOV DR instruction causes a VM exit if the "MOV-DR exiting"
@@ -899,10 +919,10 @@ HvHandleMovDebugRegister(VIRTUAL_MACHINE_STATE * VCpu)
 
     if (Dr7.GeneralDetect)
     {
-        DR6 Dr6 = {
-            .AsUInt                      = CpuReadDr(6),
-            .BreakpointCondition         = 0,
-            .DebugRegisterAccessDetected = TRUE};
+        DR6 Dr6;
+        Dr6.AsUInt                      = CpuReadDr(6);
+        Dr6.BreakpointCondition         = 0;
+        Dr6.DebugRegisterAccessDetected = TRUE;
 
         CpuWriteDr(6, Dr6.AsUInt);
 
@@ -992,6 +1012,16 @@ HvHandleMovDebugRegister(VIRTUAL_MACHINE_STATE * VCpu)
         default:
             break;
         }
+
+        if (ExitQualification.GeneralPurposeRegister == 4)
+        {
+            VmxVmwrite64(VMCS_GUEST_RSP, GpRegister);
+        }
+        else
+        {
+            GpRegs[ExitQualification.GeneralPurposeRegister] = GpRegister;
+        }
+        break;
 
     default:
         break;

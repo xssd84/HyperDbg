@@ -266,14 +266,14 @@ VmxAllocateInvalidMsrBimap()
 {
     UINT64 * InvalidMsrBitmap;
 
-    InvalidMsrBitmap = PlatformMemAllocateZeroedNonPagedPool(0x1000 / 0x8);
+    InvalidMsrBitmap = PlatformMemAllocateZeroedNonPagedPool(0x2000 / 0x8);
 
     if (InvalidMsrBitmap == NULL)
     {
         return NULL;
     }
 
-    for (UINT32 i = 0; i < 0x1000; ++i)
+    for (UINT32 i = 0; i < 0x2000; ++i)
     {
         __try
         {

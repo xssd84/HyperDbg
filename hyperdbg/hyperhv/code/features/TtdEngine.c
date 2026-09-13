@@ -25,11 +25,14 @@ static BOOLEAN             g_TtdInitialized                         = FALSE;
 static UINT32              g_TtdTargetPid                           = 0;
 static UINT32              g_TtdTargetCore                          = 0xFFFFFFFF;
 static UINT64              g_TtdPtBufferSize                        = 4 * 1024 * 1024; /* 4 MB */
-#define TTD_MAX_PROCESSOR_COUNT 256
-static PVOID               g_TtdPtBuffers[TTD_MAX_PROCESSOR_COUNT]        = {0};
-static UINT64              g_TtdPtBufferPhysical[TTD_MAX_PROCESSOR_COUNT] = {0};
-static BOOLEAN             g_TtdReplayMode                          = FALSE;
-static UINT64              g_TtdCurrentReplaySeq                    = 0;
+static PVOID *               g_TtdPtBuffers                                 = NULL;
+static UINT64 *              g_TtdPtBufferPhysical                          = NULL;
+static ULONG                 g_TtdAllocatedCores                            = 0;
+#define TTD_PREALLOC_SHADOW_FRAMES 1024
+static PVOID                 g_TtdPreallocShadowPool[TTD_PREALLOC_SHADOW_FRAMES] = {0};
+static volatile LONG         g_TtdPreallocShadowCount                       = 0;
+static BOOLEAN               g_TtdReplayMode                                = FALSE;
+static UINT64                g_TtdCurrentReplaySeq                          = 0;
 
 //////////////////////////////////////////////////
 //            Initialization & Teardown         //
@@ -56,6 +59,26 @@ TtdEngineInitialize()
     g_TtdTracker.TailIndex             = 0;
     g_TtdReplayMode                    = FALSE;
     g_TtdCurrentReplaySeq              = 0;
+
+    ULONG MaxCores        = KeQueryMaximumProcessorCount();
+    g_TtdAllocatedCores   = MaxCores;
+    g_TtdPtBuffers        = PlatformMemAllocateZeroedNonPagedPool(sizeof(PVOID) * MaxCores);
+    g_TtdPtBufferPhysical = PlatformMemAllocateZeroedNonPagedPool(sizeof(UINT64) * MaxCores);
+
+    if (g_TtdPtBuffers == NULL || g_TtdPtBufferPhysical == NULL)
+    {
+        if (g_TtdPtBuffers != NULL)
+        {
+            PlatformMemFreePool(g_TtdPtBuffers);
+            g_TtdPtBuffers = NULL;
+        }
+        if (g_TtdPtBufferPhysical != NULL)
+        {
+            PlatformMemFreePool(g_TtdPtBufferPhysical);
+            g_TtdPtBufferPhysical = NULL;
+        }
+        return FALSE;
+    }
 
     g_TtdInitialized = TRUE;
     LogInfo("TTD Engine initialized successfully");
@@ -102,16 +125,40 @@ TtdEngineUninitialize()
     //
     // Free per-core Intel PT buffers
     //
-    ULONG ProcessorsCount = KeQueryActiveProcessorCount(0);
-    for (ULONG Core = 0; Core < ProcessorsCount; Core++)
+    for (ULONG Core = 0; Core < g_TtdAllocatedCores; Core++)
     {
-        if (g_TtdPtBuffers[Core] != NULL)
+        if (g_TtdPtBuffers != NULL && g_TtdPtBuffers[Core] != NULL)
         {
             PlatformMemFreePool(g_TtdPtBuffers[Core]);
             g_TtdPtBuffers[Core]        = NULL;
             g_TtdPtBufferPhysical[Core] = 0;
         }
     }
+
+    if (g_TtdPtBuffers != NULL)
+    {
+        PlatformMemFreePool(g_TtdPtBuffers);
+        g_TtdPtBuffers = NULL;
+    }
+    if (g_TtdPtBufferPhysical != NULL)
+    {
+        PlatformMemFreePool(g_TtdPtBufferPhysical);
+        g_TtdPtBufferPhysical = NULL;
+    }
+    g_TtdAllocatedCores = 0;
+
+    //
+    // Free preallocated shadow frame pool
+    //
+    for (LONG idx = 0; idx < TTD_PREALLOC_SHADOW_FRAMES; idx++)
+    {
+        if (g_TtdPreallocShadowPool[idx] != NULL)
+        {
+            PlatformMemFreePool(g_TtdPreallocShadowPool[idx]);
+            g_TtdPreallocShadowPool[idx] = NULL;
+        }
+    }
+    g_TtdPreallocShadowCount = 0;
 
     RtlZeroMemory(&g_TtdTracker, sizeof(TTD_PML_COW_TRACKER));
     g_TtdInitialized = FALSE;
@@ -206,7 +253,19 @@ TtdEngineStart(PDEBUGGER_TTD_START_REQUEST Request)
     }
 
     //
-    // Configure Intel PT MSRs on target or all cores
+    // Pre-allocate shadow frames for safe VMX root usage
+    //
+    for (LONG idx = 0; idx < TTD_PREALLOC_SHADOW_FRAMES; idx++)
+    {
+        if (g_TtdPreallocShadowPool[idx] == NULL)
+        {
+            g_TtdPreallocShadowPool[idx] = PlatformMemAllocateNonPagedPool(PAGE_SIZE);
+        }
+    }
+    g_TtdPreallocShadowCount = TTD_PREALLOC_SHADOW_FRAMES;
+
+    //
+    // Configure Intel PT MSRs on target or all cores with processor affinity
     //
     for (ULONG Core = 0; Core < ProcessorsCount; Core++)
     {
@@ -214,6 +273,8 @@ TtdEngineStart(PDEBUGGER_TTD_START_REQUEST Request)
         {
             continue;
         }
+
+        KeSetSystemAffinityThread((KAFFINITY)(1ULL << Core));
 
         //
         // Reset PT MSRs and configure circular buffer
@@ -238,6 +299,8 @@ TtdEngineStart(PDEBUGGER_TTD_START_REQUEST Request)
         }
 
         CpuWriteMsr(MSR_IA32_RTIT_CTL, RtitCtl);
+
+        KeRevertToUserAffinityThread();
     }
 
     //
@@ -452,12 +515,17 @@ TtdEngineRecordPmlPageDiff(VIRTUAL_MACHINE_STATE * VCpu, UINT64 AccessedPhysAddr
     }
 
     //
-    // 3. Allocate pristine 4KB shadow backup frame
+    // 3. Claim pristine 4KB shadow backup frame from preallocated pool (safe in VMX root)
     //
-    PVOID ShadowFrame = PlatformMemAllocateNonPagedPool(PAGE_SIZE);
-    if (ShadowFrame == NULL)
+    PVOID ShadowFrame = NULL;
+    LONG  PoolIdx     = InterlockedDecrement(&g_TtdPreallocShadowCount);
+    if (PoolIdx >= 0 && PoolIdx < TTD_PREALLOC_SHADOW_FRAMES)
     {
-        LogError("Err, failed to allocate shadow frame for GPA: 0x%llx", AlignedGpa);
+        ShadowFrame = g_TtdPreallocShadowPool[PoolIdx];
+    }
+    else
+    {
+        LogWarning("Warn, preallocated shadow frames exhausted in VMX root for GPA: 0x%llx", AlignedGpa);
         return;
     }
 
@@ -467,7 +535,7 @@ TtdEngineRecordPmlPageDiff(VIRTUAL_MACHINE_STATE * VCpu, UINT64 AccessedPhysAddr
     PVOID SourceVa = (PVOID)PhysicalAddressToVirtualAddress(AlignedGpa);
     if (SourceVa == NULL)
     {
-        PlatformMemFreePool(ShadowFrame);
+        InterlockedIncrement(&g_TtdPreallocShadowCount);
         return;
     }
 
@@ -583,9 +651,10 @@ TtdEngineRestoreCheckpoint(PDEBUGGER_TTD_RESTORE_REQUEST Request)
     g_TtdReplayMode        = TRUE;
     g_TtdCurrentReplaySeq  = TargetCp->Sync.InstructionCount;
 
-    Request->RestoredRip   = TargetCp->Sync.Rip;
-    Request->RestoredPages = RestoredPageCount;
-    Request->KernelStatus  = TTD_STATUS_SUCCESS;
+    Request->TargetInstructionCount = TargetCp->Sync.InstructionCount;
+    Request->RestoredRip            = TargetCp->Sync.Rip;
+    Request->RestoredPages          = RestoredPageCount;
+    Request->KernelStatus           = TTD_STATUS_SUCCESS;
 
     LogInfo("Restored checkpoint %u (Pages reverted: %u, RIP: 0x%llx)",
             TargetId, RestoredPageCount, TargetCp->Sync.Rip);
@@ -618,7 +687,7 @@ TtdEngineFastForward(PDEBUGGER_TTD_FAST_FORWARD_REQUEST Request)
         return Status;
     }
 
-    UINT64 CurrentInst = RestoreReq.RestoredRip; /* Baseline instruction count */
+    UINT64 CurrentInst = g_TtdCurrentReplaySeq; /* Baseline instruction count */
     UINT64 TargetInst  = Request->TargetInstructionCount;
 
     if (TargetInst <= CurrentInst)

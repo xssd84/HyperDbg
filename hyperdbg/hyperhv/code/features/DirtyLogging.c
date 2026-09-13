@@ -241,9 +241,11 @@ DirtyLoggingFlushPmlBuffer(VIRTUAL_MACHINE_STATE * VCpu)
         return FALSE;
 
     //
-    // PML index always points to next available PML buffer entity
+    // PML index always points to next available PML buffer entity.
+    // On a PML-full VM-exit (PmlIdx == 0xFFFF), all 512 entities are filled,
+    // so we start flushing from index 0.
     //
-    if (PmlIdx >= PML_ENTITY_NUM)
+    if (PmlIdx == 0xFFFF || PmlIdx >= PML_ENTITY_NUM)
     {
         PmlIdx = 0;
     }

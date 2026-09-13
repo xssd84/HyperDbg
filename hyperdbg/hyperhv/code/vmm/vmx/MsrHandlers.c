@@ -170,13 +170,23 @@ MsrHandleRdmsrVmexit(VIRTUAL_MACHINE_STATE * VCpu)
             //
             // Check whether the MSR should cause #GP or not
             //
-            if (TargetMsr <= 0xfff && TestBit(TargetMsr, (ULONG *)g_MsrBitmapInvalidMsrs) != NULL64_ZERO)
+            if (TargetMsr < 0x2000 && TestBit(TargetMsr, (ULONG *)g_MsrBitmapInvalidMsrs) != NULL64_ZERO)
             {
                 //
-                // Invalid MSR between 0x0 to 0xfff
+                // Invalid MSR between 0x0 to 0x1fff
                 //
                 EventInjectGeneralProtection();
                 return;
+            }
+
+            if (TargetMsr >= 0xC0000000 && TargetMsr <= 0xC0001FFF)
+            {
+                if (!((TargetMsr >= 0xC0000080 && TargetMsr <= 0xC0000084) ||
+                      (TargetMsr >= 0xC0000100 && TargetMsr <= 0xC0000103)))
+                {
+                    EventInjectGeneralProtection();
+                    return;
+                }
             }
 
             //

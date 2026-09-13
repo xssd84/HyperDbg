@@ -143,90 +143,27 @@ VmxInitialize()
         //
         // Allocating VMM Stack
         //
-        if (!VmxAllocateVmmStack(GuestState))
-        {
-            //
-            // Some error in allocating Vmm Stack
-            //
-            return FALSE;
-        }
-
-        //
-        // Allocating MSR Bit
-        //
-        if (!VmxAllocateMsrBitmap(GuestState))
-        {
-            //
-            // Some error in allocating Msr Bitmaps
-            //
-            return FALSE;
-        }
-
-        //
-        // Allocating I/O Bit
-        //
-        if (!VmxAllocateIoBitmaps(GuestState))
-        {
-            //
-            // Some error in allocating I/O Bitmaps
-            //
-            return FALSE;
-        }
-
+        if (!VmxAllocateVmmStack(GuestState) ||
+            !VmxAllocateMsrBitmap(GuestState) ||
+            !VmxAllocateIoBitmaps(GuestState)
 #if USE_DEFAULT_OS_IDT_AS_HOST_IDT == FALSE
-
-        //
-        // Allocating Host IDT
-        //
-        if (!VmxAllocateHostIdt(GuestState))
-        {
-            //
-            // Some error in allocating Host IDT
-            //
-            return FALSE;
-        }
+            || !VmxAllocateHostIdt(GuestState)
 #endif // USE_DEFAULT_OS_IDT_AS_HOST_IDT == FALSE
-
 #if USE_DEFAULT_OS_GDT_AS_HOST_GDT == FALSE
-
-        //
-        // Allocating Host GDT
-        //
-        if (!VmxAllocateHostGdt(GuestState))
-        {
-            //
-            // Some error in allocating Host GDT
-            //
-            return FALSE;
-        }
-
-        //
-        // Allocating Host TSS
-        //
-        if (!VmxAllocateHostTss(GuestState))
-        {
-            //
-            // Some error in allocating Host TSS
-            //
-            return FALSE;
-        }
-
+            || !VmxAllocateHostGdt(GuestState) || !VmxAllocateHostTss(GuestState)
 #endif // USE_DEFAULT_OS_GDT_AS_HOST_GDT == FALSE
-
 #if USE_INTERRUPT_STACK_TABLE == TRUE
-
-        //
-        // Allocating Host Interrupt Stack
-        //
-        if (!VmxAllocateHostInterruptStack(GuestState))
+            || !VmxAllocateHostInterruptStack(GuestState)
+#endif // USE_INTERRUPT_STACK_TABLE == TRUE
+        )
         {
-            //
-            // Some error in allocating Interrupt Stack
-            //
+            LogError("Err, allocating processor resources failed on core %llu", (UINT64)ProcessorID);
+            for (SIZE_T CleanupId = 0; CleanupId <= ProcessorID; CleanupId++)
+            {
+                VmxFreeProcessorStructures(&g_GuestState[CleanupId]);
+            }
             return FALSE;
         }
-
-#endif // USE_INTERRUPT_STACK_TABLE == TRUE
     }
 
     //
@@ -236,6 +173,11 @@ VmxInitialize()
 
     if (g_MsrBitmapInvalidMsrs == NULL)
     {
+        LogError("Err, allocating invalid MSR bitmap failed");
+        for (SIZE_T CleanupId = 0; CleanupId < ProcessorsCount; CleanupId++)
+        {
+            VmxFreeProcessorStructures(&g_GuestState[CleanupId]);
+        }
         return FALSE;
     }
 
@@ -254,6 +196,16 @@ VmxInitialize()
     }
     else
     {
+        LogError("Err, test VMCALL failed");
+        if (g_MsrBitmapInvalidMsrs != NULL)
+        {
+            PlatformMemFreePool(g_MsrBitmapInvalidMsrs);
+            g_MsrBitmapInvalidMsrs = NULL;
+        }
+        for (SIZE_T CleanupId = 0; CleanupId < ProcessorsCount; CleanupId++)
+        {
+            VmxFreeProcessorStructures(&g_GuestState[CleanupId]);
+        }
         return FALSE;
     }
 }
@@ -552,6 +504,65 @@ VmxVirtualizeCurrentSystem(PVOID GuestStack)
 }
 
 /**
+ * @brief Free per-processor allocated VMM pools
+ *
+ * @param VCpu The virtual processor's state
+ * @return VOID
+ */
+VOID
+VmxFreeProcessorStructures(VIRTUAL_MACHINE_STATE * VCpu)
+{
+    if (VCpu->VmmStack)
+    {
+        PlatformMemFreePool((PVOID)VCpu->VmmStack);
+        VCpu->VmmStack = 0;
+    }
+    if (VCpu->MsrBitmapVirtualAddress)
+    {
+        PlatformMemFreePool((PVOID)VCpu->MsrBitmapVirtualAddress);
+        VCpu->MsrBitmapVirtualAddress = 0;
+    }
+    if (VCpu->IoBitmapVirtualAddressA)
+    {
+        PlatformMemFreePool((PVOID)VCpu->IoBitmapVirtualAddressA);
+        VCpu->IoBitmapVirtualAddressA = 0;
+    }
+    if (VCpu->IoBitmapVirtualAddressB)
+    {
+        PlatformMemFreePool((PVOID)VCpu->IoBitmapVirtualAddressB);
+        VCpu->IoBitmapVirtualAddressB = 0;
+    }
+#if USE_DEFAULT_OS_IDT_AS_HOST_IDT == FALSE
+    if (VCpu->HostIdt)
+    {
+        PlatformMemFreePool((PVOID)VCpu->HostIdt);
+        VCpu->HostIdt = NULL;
+    }
+#endif // USE_DEFAULT_OS_IDT_AS_HOST_IDT == FALSE
+
+#if USE_DEFAULT_OS_GDT_AS_HOST_GDT == FALSE
+    if (VCpu->HostGdt)
+    {
+        PlatformMemFreePool((PVOID)VCpu->HostGdt);
+        VCpu->HostGdt = NULL;
+    }
+    if (VCpu->HostTss)
+    {
+        PlatformMemFreePool((PVOID)VCpu->HostTss);
+        VCpu->HostTss = NULL;
+    }
+#endif // USE_DEFAULT_OS_GDT_AS_HOST_GDT == FALSE
+
+#if USE_INTERRUPT_STACK_TABLE == TRUE
+    if (VCpu->HostInterruptStack)
+    {
+        PlatformMemFreePool((PVOID)VCpu->HostInterruptStack);
+        VCpu->HostInterruptStack = NULL;
+    }
+#endif // USE_INTERRUPT_STACK_TABLE == TRUE
+}
+
+/**
  * @brief Broadcast to terminate VMX on all logical cores
  *
  * @return BOOLEAN Returns true if vmxoff successfully executed in vmcall or otherwise
@@ -578,22 +589,7 @@ VmxTerminate()
         //
         MmFreeContiguousMemory((PVOID)VCpu->VmxonRegionVirtualAddress);
         MmFreeContiguousMemory((PVOID)VCpu->VmcsRegionVirtualAddress);
-        PlatformMemFreePool((PVOID)VCpu->VmmStack);
-        PlatformMemFreePool((PVOID)VCpu->MsrBitmapVirtualAddress);
-        PlatformMemFreePool((PVOID)VCpu->IoBitmapVirtualAddressA);
-        PlatformMemFreePool((PVOID)VCpu->IoBitmapVirtualAddressB);
-#if USE_DEFAULT_OS_IDT_AS_HOST_IDT == FALSE
-        PlatformMemFreePool((PVOID)VCpu->HostIdt);
-#endif // USE_DEFAULT_OS_IDT_AS_HOST_IDT == FALSE
-
-#if USE_DEFAULT_OS_GDT_AS_HOST_GDT == FALSE
-        PlatformMemFreePool((PVOID)VCpu->HostGdt);
-        PlatformMemFreePool((PVOID)VCpu->HostTss);
-#endif // USE_DEFAULT_OS_GDT_AS_HOST_GDT == FALSE
-
-#if USE_INTERRUPT_STACK_TABLE == TRUE
-        PlatformMemFreePool((PVOID)VCpu->HostInterruptStack);
-#endif // USE_INTERRUPT_STACK_TABLE == FALSE
+        VmxFreeProcessorStructures(VCpu);
 
         return TRUE;
     }

@@ -102,6 +102,25 @@ VmxHandleVmcallVmExit(VIRTUAL_MACHINE_STATE * VCpu)
     }
     else
     {
+        //
+        // Non-HyperDbg VMCALL
+        //
+        // If we are NOT running under Hyper-V (bare metal), executing AsmHypervVmcall()
+        // in VMX root triggers a host #UD and crashes the system.
+        //
+        if (!g_IsTopLevelHypervisorHyperV)
+        {
+            EventInjectUndefinedOpcode(VCpu);
+            return STATUS_SUCCESS;
+        }
+
+        if ((HvGetCsSelector() & 3) != 0)
+        {
+            EventInjectGeneralProtection();
+            HvSuppressRipIncrement(VCpu);
+            return STATUS_SUCCESS;
+        }
+
         return VmxHypervVmcallHandler(VCpu, GuestRegs);
     }
 

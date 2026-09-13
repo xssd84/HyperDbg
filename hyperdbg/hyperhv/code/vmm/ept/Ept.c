@@ -214,6 +214,11 @@ EptBuildMtrrMap(VOID)
         IA32_MTRR_FIXED_RANGE_TYPE K64Types = {CpuReadMsr(IA32_MTRR_FIX64K_00000)};
         for (UINT32 i = 0; i < 8; i++)
         {
+            if (g_EptState->NumberOfEnabledMemoryRanges >= NUM_MTRR_ENTRIES)
+            {
+                LogError("Err, MTRR memory ranges array capacity exceeded");
+                return FALSE;
+            }
             Descriptor                      = &g_EptState->MemoryRanges[g_EptState->NumberOfEnabledMemoryRanges++];
             Descriptor->MemoryType          = K64Types.s.Types[i];
             Descriptor->PhysicalBaseAddress = K64Base + (K64Size * i);
@@ -228,6 +233,11 @@ EptBuildMtrrMap(VOID)
             IA32_MTRR_FIXED_RANGE_TYPE K16Types = {CpuReadMsr(IA32_MTRR_FIX16K_80000 + i)};
             for (UINT32 j = 0; j < 8; j++)
             {
+                if (g_EptState->NumberOfEnabledMemoryRanges >= NUM_MTRR_ENTRIES)
+                {
+                    LogError("Err, MTRR memory ranges array capacity exceeded");
+                    return FALSE;
+                }
                 Descriptor                      = &g_EptState->MemoryRanges[g_EptState->NumberOfEnabledMemoryRanges++];
                 Descriptor->MemoryType          = K16Types.s.Types[j];
                 Descriptor->PhysicalBaseAddress = (K16Base + (i * K16Size * 8)) + (K16Size * j);
@@ -244,6 +254,11 @@ EptBuildMtrrMap(VOID)
 
             for (UINT32 j = 0; j < 8; j++)
             {
+                if (g_EptState->NumberOfEnabledMemoryRanges >= NUM_MTRR_ENTRIES)
+                {
+                    LogError("Err, MTRR memory ranges array capacity exceeded");
+                    return FALSE;
+                }
                 Descriptor                      = &g_EptState->MemoryRanges[g_EptState->NumberOfEnabledMemoryRanges++];
                 Descriptor->MemoryType          = K4Types.s.Types[j];
                 Descriptor->PhysicalBaseAddress = (K4Base + (i * K4Size * 8)) + (K4Size * j);
@@ -270,6 +285,12 @@ EptBuildMtrrMap(VOID)
             // We only need to read these once because the ISA dictates that MTRRs are
             // to be synchronized between all processors during BIOS initialization.
             //
+            if (g_EptState->NumberOfEnabledMemoryRanges >= NUM_MTRR_ENTRIES)
+            {
+                LogError("Err, MTRR memory ranges array capacity exceeded");
+                return FALSE;
+            }
+
             Descriptor = &g_EptState->MemoryRanges[g_EptState->NumberOfEnabledMemoryRanges++];
 
             //
@@ -1213,10 +1234,12 @@ EptSetPML1AndInvalidateTLB(VIRTUAL_MACHINE_STATE * VCpu,
     if (InvalidationType == InveptSingleContext)
     {
         EptInveptSingleContext(VCpu->EptPointer.AsUInt);
+        VmxBroadcastNmi(VCpu, NMI_BROADCAST_ACTION_INVALIDATE_EPT_CACHE_SINGLE_CONTEXT);
     }
     else if (InvalidationType == InveptAllContext)
     {
         EptInveptAllContexts();
+        VmxBroadcastNmi(VCpu, NMI_BROADCAST_ACTION_INVALIDATE_EPT_CACHE_ALL_CONTEXTS);
     }
     else
     {
