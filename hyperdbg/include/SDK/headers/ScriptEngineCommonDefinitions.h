@@ -286,6 +286,12 @@ static const char *const SymbolTypeNames[] = {
 #define FUNC_EVASION_SET_MODE 167
 #define FUNC_PT_STOP 168
 #define FUNC_PT_DUMP 169
+#define FUNC_TTD_START 170
+#define FUNC_TTD_STOP 171
+#define FUNC_TTD_CHECKPOINT 172
+#define FUNC_TTD_STEP_BACK 173
+#define FUNC_TTD_GOTO 174
+#define FUNC_TTD_FIND_WRITE 175
 #define FUNC_SPINLOCK_LOCK 42
 #define FUNC_SPINLOCK_UNLOCK 43
 #define FUNC_EVENT_SC 44
@@ -584,6 +590,12 @@ static const char *const FunctionNames[] = {
 "FUNC_EVASION_SET_MODE",
 "FUNC_PT_STOP",
 "FUNC_PT_DUMP",
+"FUNC_TTD_START",
+"FUNC_TTD_STOP",
+"FUNC_TTD_CHECKPOINT",
+"FUNC_TTD_STEP_BACK",
+"FUNC_TTD_GOTO",
+"FUNC_TTD_FIND_WRITE",
 };
 
 typedef enum REGS_ENUM {

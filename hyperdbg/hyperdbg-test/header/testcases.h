@@ -36,6 +36,9 @@ TestScriptEngineVariableTypes();
 BOOLEAN
 TestSnapshotFuzzingEngine();
 
+BOOLEAN
+TestTimeTravelDebuggingEngine();
+
 INT32
 FuzzTargetUserModeParser(const UINT8 * Buffer, SIZE_T Size);
 

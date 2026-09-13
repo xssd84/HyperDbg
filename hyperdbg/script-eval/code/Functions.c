@@ -2640,3 +2640,127 @@ ScriptEngineFunctionEvasionSetMode(UINT32 ModeMask)
 #endif // SCRIPT_ENGINE_KERNEL_MODE
 }
 
+/**
+ * @brief Implementation of ttd_start function in script engine
+ */
+BOOLEAN
+ScriptEngineFunctionTtdStart(UINT32 TargetPid, UINT32 PinToCore)
+{
+#ifdef SCRIPT_ENGINE_USER_MODE
+    ShowMessages("err, it's not possible to call ttd_start function in user-mode\n");
+    return FALSE;
+#endif // SCRIPT_ENGINE_USER_MODE
+
+#ifdef SCRIPT_ENGINE_KERNEL_MODE
+    DEBUGGER_TTD_START_REQUEST Request = {0};
+    Request.TargetPid    = TargetPid;
+    Request.PinToCore    = PinToCore;
+    Request.PtBufferSize = 4 * 1024 * 1024;
+    return (TtdEngineStart(&Request) == STATUS_SUCCESS);
+#endif // SCRIPT_ENGINE_KERNEL_MODE
+}
+
+/**
+ * @brief Implementation of ttd_stop function in script engine
+ */
+BOOLEAN
+ScriptEngineFunctionTtdStop()
+{
+#ifdef SCRIPT_ENGINE_USER_MODE
+    ShowMessages("err, it's not possible to call ttd_stop function in user-mode\n");
+    return FALSE;
+#endif // SCRIPT_ENGINE_USER_MODE
+
+#ifdef SCRIPT_ENGINE_KERNEL_MODE
+    UINT32 Status = 0;
+    return (TtdEngineStop(&Status) == STATUS_SUCCESS);
+#endif // SCRIPT_ENGINE_KERNEL_MODE
+}
+
+/**
+ * @brief Implementation of ttd_checkpoint function in script engine
+ */
+UINT64
+ScriptEngineFunctionTtdCheckpoint()
+{
+#ifdef SCRIPT_ENGINE_USER_MODE
+    ShowMessages("err, it's not possible to call ttd_checkpoint function in user-mode\n");
+    return 0;
+#endif // SCRIPT_ENGINE_USER_MODE
+
+#ifdef SCRIPT_ENGINE_KERNEL_MODE
+    DEBUGGER_TTD_CHECKPOINT_REQUEST Request = {0};
+    if (TtdEngineTakeCheckpoint(&Request) == STATUS_SUCCESS)
+    {
+        return (UINT64)Request.CheckpointId;
+    }
+    return 0;
+#endif // SCRIPT_ENGINE_KERNEL_MODE
+}
+
+/**
+ * @brief Implementation of ttd_step_back function in script engine
+ */
+BOOLEAN
+ScriptEngineFunctionTtdStepBack()
+{
+#ifdef SCRIPT_ENGINE_USER_MODE
+    ShowMessages("err, it's not possible to call ttd_step_back function in user-mode\n");
+    return FALSE;
+#endif // SCRIPT_ENGINE_USER_MODE
+
+#ifdef SCRIPT_ENGINE_KERNEL_MODE
+    TTD_SESSION_STATUS Status = {0};
+    if (TtdEngineGetStatus(&Status) != STATUS_SUCCESS || Status.ActiveCheckpointCount == 0)
+    {
+        return FALSE;
+    }
+
+    DEBUGGER_TTD_RESTORE_REQUEST Request = {0};
+    Request.TargetCheckpointId = Status.TotalCheckpointsTaken > 1 ? Status.TotalCheckpointsTaken - 2 : 0;
+    return (TtdEngineRestoreCheckpoint(&Request) == STATUS_SUCCESS);
+#endif // SCRIPT_ENGINE_KERNEL_MODE
+}
+
+/**
+ * @brief Implementation of ttd_goto function in script engine
+ */
+BOOLEAN
+ScriptEngineFunctionTtdGoto(UINT64 TargetSeq)
+{
+#ifdef SCRIPT_ENGINE_USER_MODE
+    ShowMessages("err, it's not possible to call ttd_goto function in user-mode\n");
+    return FALSE;
+#endif // SCRIPT_ENGINE_USER_MODE
+
+#ifdef SCRIPT_ENGINE_KERNEL_MODE
+    DEBUGGER_TTD_FAST_FORWARD_REQUEST Request = {0};
+    Request.TargetCheckpointId     = 0;
+    Request.TargetInstructionCount = TargetSeq;
+    return (TtdEngineFastForward(&Request) == STATUS_SUCCESS);
+#endif // SCRIPT_ENGINE_KERNEL_MODE
+}
+
+/**
+ * @brief Implementation of ttd_find_write function in script engine
+ */
+UINT64
+ScriptEngineFunctionTtdFindWrite(UINT64 Address, UINT32 Size)
+{
+#ifdef SCRIPT_ENGINE_USER_MODE
+    ShowMessages("err, it's not possible to call ttd_find_write function in user-mode\n");
+    return 0;
+#endif // SCRIPT_ENGINE_USER_MODE
+
+#ifdef SCRIPT_ENGINE_KERNEL_MODE
+    DEBUGGER_TTD_FIND_WRITE_REQUEST Request = {0};
+    Request.TargetGuestAddress = Address;
+    Request.AccessSize         = Size ? Size : 8;
+    if (TtdEngineFindMemoryWrite(&Request) == STATUS_SUCCESS)
+    {
+        return Request.WritingInstructionRip;
+    }
+    return 0;
+#endif // SCRIPT_ENGINE_KERNEL_MODE
+}
+

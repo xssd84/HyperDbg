@@ -129,6 +129,7 @@
 #include "features/DirtyLogging.h"
 #include "features/CompatibilityChecks.h"
 #include "features/SnapshotFuzzing.h"
+#include "features/TtdEngine.h"
 #include "mmio/MmioShadowing.h"
 
 //

@@ -1084,3 +1084,31 @@ SnapshotMapShmRingBuffer(PDEBUGGER_FUZZ_MAP_SHM_REQUEST Request, PVOID * OutUser
 
 IMPORT_EXPORT_VMM NTSTATUS
 SnapshotSignalAflForkserver(PDEBUGGER_FUZZ_AFL_SIGNAL_REQUEST Request);
+
+//////////////////////////////////////////////////
+//     Hardware Time-Travel Debugging (TTD)     //
+//////////////////////////////////////////////////
+
+IMPORT_EXPORT_VMM NTSTATUS
+TtdEngineStart(PDEBUGGER_TTD_START_REQUEST Request);
+
+IMPORT_EXPORT_VMM NTSTATUS
+TtdEngineStop(PUINT32 Status);
+
+IMPORT_EXPORT_VMM NTSTATUS
+TtdEngineGetStatus(PTTD_SESSION_STATUS Status);
+
+IMPORT_EXPORT_VMM NTSTATUS
+TtdEngineTakeCheckpoint(PDEBUGGER_TTD_CHECKPOINT_REQUEST Request);
+
+IMPORT_EXPORT_VMM NTSTATUS
+TtdEngineRestoreCheckpoint(PDEBUGGER_TTD_RESTORE_REQUEST Request);
+
+IMPORT_EXPORT_VMM NTSTATUS
+TtdEngineFastForward(PDEBUGGER_TTD_FAST_FORWARD_REQUEST Request);
+
+IMPORT_EXPORT_VMM NTSTATUS
+TtdEngineGetTraceBuffer(PDEBUGGER_TTD_GET_TRACE_REQUEST Request);
+
+IMPORT_EXPORT_VMM NTSTATUS
+TtdEngineFindMemoryWrite(PDEBUGGER_TTD_FIND_WRITE_REQUEST Request);

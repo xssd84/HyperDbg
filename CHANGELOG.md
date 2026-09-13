@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Native Hypervisor-Backed Hardware Time-Travel Debugging (TTD) combining Intel Processor Trace (PT) ToPA packet streaming and Intel VT-x Page Modification Logging (PML) incremental Copy-on-Write (CoW) dirty-page undo records ([docs](HARDWARE_TIME_TRAVEL_DEBUGGING.md)).
+- User-mode CLI extensions for reverse debugging: `!ttd` (session management, checkpointing, timeline seeking), `t-`/`tr-` (step into backward with register delta highlighting), `p-`/`pr-` (step over backward), `gu-` (step out backward), `g-` (reverse continue), and `ba- w` (reverse hardware memory watchpoints).
+- Bare-metal PMU hardware fast-forwarding using `IA32_FIXED_CTR0` and Monitor Trap Flag (MTF) single-stepping for 100% bit-exact register and memory replay without software CPU emulation.
+- In-kernel script engine intrinsics: `@ttd_start()`, `@ttd_stop()`, `@ttd_checkpoint()`, `@ttd_step_back()`, `@ttd_goto()`, and `@ttd_find_write()`.
+- Public C/C++ RAII SDK (`HyperTtd.h`, `LibHyperTtd.hpp`) and Python SDK bridge (`hyperttd.py`).
+- Automated 7-stage verification test suite in `hyperdbg-test` (`test-ttd`).
+
 ## [0.23.0.0] - 2026-08-03
 New release of the HyperDbg Debugger.
 

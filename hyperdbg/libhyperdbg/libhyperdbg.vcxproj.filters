@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="header">
@@ -260,6 +260,9 @@
     <ClInclude Include="header\debugger\misc\pci-id.h">
       <Filter>header\debugger\misc</Filter>
     </ClInclude>
+    <ClInclude Include="header\debugger\misc\ttd-timeline.h">
+      <Filter>header\debugger\misc</Filter>
+    </ClInclude>
     <ClInclude Include="header\debugger\user-level\pe-parser.h">
       <Filter>header\debugger\user-level</Filter>
     </ClInclude>
@@ -438,6 +441,12 @@
     </ClCompile>
     <ClCompile Include="code\debugger\commands\extension-commands\tsc.cpp">
       <Filter>code\debugger\commands\extension-commands</Filter>
+    </ClCompile>
+    <ClCompile Include="code\debugger\commands\extension-commands\ttd.cpp">
+      <Filter>code\debugger\commands\extension-commands</Filter>
+    </ClCompile>
+    <ClCompile Include="code\debugger\misc\ttd-timeline.cpp">
+      <Filter>code\debugger\misc</Filter>
     </ClCompile>
     <ClCompile Include="code\debugger\commands\extension-commands\unhide.cpp">
       <Filter>code\debugger\commands\extension-commands</Filter>

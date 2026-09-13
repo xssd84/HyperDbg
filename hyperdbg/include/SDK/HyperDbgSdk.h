@@ -35,6 +35,12 @@
 #include "SDK/modules/HyperFuzz.h"
 
 //
+// Hardware Time-Travel Debugging (TTD)
+//
+#include "SDK/headers/TtdDefinitions.h"
+#include "SDK/modules/HyperTtd.h"
+
+//
 // Request Packets
 //
 #include "SDK/headers/RequestStructures.h"

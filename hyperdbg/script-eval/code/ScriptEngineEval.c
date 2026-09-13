@@ -1872,6 +1872,91 @@ ScriptEngineExecute(PGUEST_REGS                      GuestRegs,
 
         break;
 
+    case FUNC_TTD_START:
+
+        Src0  = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                         (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+        SrcVal0 = GetValue(GuestRegs, ActionDetail, ScriptGeneralRegisters, Src0, FALSE);
+
+        Src1  = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                         (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+        SrcVal1 = GetValue(GuestRegs, ActionDetail, ScriptGeneralRegisters, Src1, FALSE);
+
+        Des   = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                        (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+
+        DesVal = ScriptEngineFunctionTtdStart((UINT32)SrcVal0, (UINT32)SrcVal1);
+        SetValue(GuestRegs, ScriptGeneralRegisters, Des, DesVal);
+        break;
+
+    case FUNC_TTD_STOP:
+
+        Des   = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                        (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+
+        DesVal = ScriptEngineFunctionTtdStop();
+        SetValue(GuestRegs, ScriptGeneralRegisters, Des, DesVal);
+        break;
+
+    case FUNC_TTD_CHECKPOINT:
+
+        Des   = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                        (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+
+        DesVal = ScriptEngineFunctionTtdCheckpoint();
+        SetValue(GuestRegs, ScriptGeneralRegisters, Des, DesVal);
+        break;
+
+    case FUNC_TTD_STEP_BACK:
+
+        Des   = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                        (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+
+        DesVal = ScriptEngineFunctionTtdStepBack();
+        SetValue(GuestRegs, ScriptGeneralRegisters, Des, DesVal);
+        break;
+
+    case FUNC_TTD_GOTO:
+
+        Src0  = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                         (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+        SrcVal0 = GetValue(GuestRegs, ActionDetail, ScriptGeneralRegisters, Src0, FALSE);
+
+        Des   = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                        (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+
+        DesVal = ScriptEngineFunctionTtdGoto(SrcVal0);
+        SetValue(GuestRegs, ScriptGeneralRegisters, Des, DesVal);
+        break;
+
+    case FUNC_TTD_FIND_WRITE:
+
+        Src0  = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                         (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+        SrcVal0 = GetValue(GuestRegs, ActionDetail, ScriptGeneralRegisters, Src0, FALSE);
+
+        Src1  = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                         (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+        SrcVal1 = GetValue(GuestRegs, ActionDetail, ScriptGeneralRegisters, Src1, FALSE);
+
+        Des   = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
+                        (unsigned long long)(*Indx * sizeof(SYMBOL)));
+        *Indx = *Indx + 1;
+
+        DesVal = ScriptEngineFunctionTtdFindWrite(SrcVal0, (UINT32)SrcVal1);
+        SetValue(GuestRegs, ScriptGeneralRegisters, Des, DesVal);
+        break;
+
     case FUNC_LBR_SAVE:
 
         Des   = (PSYMBOL)((unsigned long long)CodeBuffer->Head +
